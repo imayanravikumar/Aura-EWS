@@ -6,10 +6,11 @@ Usage:
   python run.py --server        # Run server only
   python run.py --train         # Train model and calibrator
   python run.py --evaluate      # Run chronological evaluation on test set
-  python run.py --ablation      # Run 4-layer ablation study
+  python run.py --ablation      # Run architectural ablation study
   python run.py --noise-test    # Run sensor noise stress test
   python run.py --test          # Run pytest unit test suite
   python run.py --all           # Execute full pipeline end-to-end and launch server
+  python run.py --reproduce     # Run tests, train, evaluate, ablate, and stress-test without server
 """
 
 import sys
@@ -27,14 +28,22 @@ def main():
     parser.add_argument("--noise-test", action="store_true", help="Run noise stress testing")
     parser.add_argument("--test", action="store_true", help="Run pytest unit test suite")
     parser.add_argument("--all", action="store_true", help="Run complete pipeline end-to-end and launch server")
+    parser.add_argument("--reproduce", action="store_true", help="Run the reproducible pipeline without launching the server")
     parser.add_argument("--port", type=int, default=8000, help="Server port (default 8000)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Server host (default 127.0.0.1)")
 
     args = parser.parse_args()
 
     # If no specific action passed, launch server (or run pipeline if artifacts missing)
-    if not (args.server or args.train or args.evaluate or args.ablation or args.noise_test or args.test or args.all):
+    if not (args.server or args.train or args.evaluate or args.ablation or args.noise_test or args.test or args.all or args.reproduce):
         args.server = True
+
+    if args.reproduce:
+        args.test = True
+        args.train = True
+        args.evaluate = True
+        args.ablation = True
+        args.noise_test = True
 
     if args.all:
         args.test = True
