@@ -25,6 +25,28 @@ class FeatureExtractor:
         self.rolling_windows = config["pipeline"].get("rolling_windows_hours", [1.0, 3.0, 6.0])
         self.trust_processor = TrustAwareSignalProcessor(config)
 
+    def _temporal_summary(self, records, current_time: float, baseline_mean: float, var: str):
+        """Compute past-only exposure and severity summaries for one variable."""
+        plausible = self.config.get("trust_layer", {}).get("plausible_ranges", {}).get(var)
+        ordered = sorted(records, key=lambda r: r.time_hours)
+        outside_hours = 0.0
+        worst_deviation = 0.0
+        for idx, rec in enumerate(ordered):
+            if plausible:
+                low, high = plausible
+                deviation = max(0.0, low - rec.original_value, rec.original_value - high)
+                is_outside = deviation > 0
+            else:
+                deviation = abs(rec.original_value - baseline_mean)
+                is_outside = False
+            worst_deviation = max(worst_deviation, float(deviation))
+            if is_outside and rec.credibility_score > 0.2:
+                next_time = ordered[idx + 1].time_hours if idx + 1 < len(ordered) else current_time
+                outside_hours += min(max(0.0, min(current_time, next_time) - rec.time_hours), 1.0)
+        recent = [r for r in ordered if r.time_hours >= current_time - 3.0 and r.credibility_score > 0.2]
+        recent_mean = float(np.mean([r.original_value for r in recent])) if recent else baseline_mean
+        return outside_hours, worst_deviation, recent_mean - baseline_mean
+
     def extract_patient_features_at_time(
         self,
         current_time: float,
@@ -83,6 +105,9 @@ class FeatureExtractor:
                 feat[f"{var}_slope_3h"] = 0.0
                 feat[f"{var}_change_1h"] = 0.0
                 feat[f"{var}_change_6h"] = 0.0
+                feat[f"{var}_time_outside_normal_hours"] = 0.0
+                feat[f"{var}_worst_deviation_so_far"] = 0.0
+                feat[f"{var}_recent_minus_baseline"] = 0.0
                 continue
 
             last_rec = records[-1]
@@ -106,6 +131,13 @@ class FeatureExtractor:
                 feat[f"{var}_baseline_mean"] = base_mean
                 feat[f"{var}_dev_from_baseline"] = float(last_rec.original_value - base_mean)
                 feat[f"{var}_pct_dev_from_baseline"] = 0.0
+
+            outside_h, worst_dev, recent_minus_base = self._temporal_summary(
+                records, current_time, base_mean, var
+            )
+            feat[f"{var}_time_outside_normal_hours"] = float(outside_h)
+            feat[f"{var}_worst_deviation_so_far"] = float(worst_dev)
+            feat[f"{var}_recent_minus_baseline"] = float(recent_minus_base)
 
             # --- Trajectory features over rolling windows ---
             # Recent 3 hours

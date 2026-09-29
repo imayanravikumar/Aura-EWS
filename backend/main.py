@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from backend.api.router import router as api_router
+from backend.api.ai import router as ai_router
 
 app = FastAPI(
     title="SilentWindow - Clinical Decision Support Prototype",
@@ -27,6 +28,7 @@ app.add_middleware(
 
 # Include API Router
 app.include_router(api_router)
+app.include_router(ai_router)
 
 # Mount frontend directory if it exists
 frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")

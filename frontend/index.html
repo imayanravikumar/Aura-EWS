@@ -48,6 +48,8 @@
     .tab-btn.active { border-bottom: 2px solid #0891B2; color: #0891B2; font-weight: 600; }
     .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
     .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 4px; }
+    .ai-prompt-chip { border: 1px solid #E0E7FF; background: #EEF2FF; color: #4338CA; border-radius: 9999px; padding: 0.4rem 0.65rem; font-size: 0.7rem; font-weight: 600; transition: all 0.15s; }
+    .ai-prompt-chip:hover { background: #E0E7FF; border-color: #A5B4FC; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col bg-slate-50 text-slate-900">
@@ -101,6 +103,9 @@
           <button onclick="switchTab('noiselab')" class="tab-btn px-3 py-2 text-sm rounded-md hover:bg-slate-800 text-slate-300 transition flex items-center gap-1.5" data-tab="noiselab">
             <i data-lucide="sliders" class="w-4 h-4"></i> Noise Lab
           </button>
+          <button onclick="switchTab('aicopilot')" class="tab-btn px-3 py-2 text-sm rounded-md hover:bg-slate-800 text-slate-300 transition flex items-center gap-1.5" data-tab="aicopilot">
+            <i data-lucide="bot" class="w-4 h-4"></i> AI Copilot
+          </button>
         </div>
       </div>
     </div>
@@ -144,7 +149,7 @@
             <i data-lucide="users" class="w-4 h-4 text-cyan-600"></i>
           </div>
           <div class="text-2xl font-bold text-slate-900" id="kpi-total-patients">152</div>
-          <p class="text-xs text-slate-500 mt-1">6,943 hours of ICU telemetry</p>
+          <p class="text-xs text-slate-500 mt-1">7,095 hours of ICU telemetry</p>
         </div>
         <!-- Card 2 -->
         <div class="glass-card rounded-xl p-5 shadow-sm border border-slate-200">
@@ -171,11 +176,11 @@
         <!-- Card 4 -->
         <div class="glass-card rounded-xl p-5 shadow-sm border border-slate-200">
           <div class="flex items-center justify-between text-slate-500 text-xs font-medium uppercase mb-2">
-            <span>Median Lead Time</span>
+            <span>Median Proxy Lead Time</span>
             <i data-lucide="clock" class="w-4 h-4 text-blue-600"></i>
           </div>
           <div class="text-2xl font-bold text-slate-900" id="kpi-median-lead-time">37.0 <span class="text-xs font-normal text-slate-500">hours</span></div>
-          <p class="text-xs text-slate-500 mt-1">Relative to ICU outcome proxy</p>
+          <p class="text-xs text-slate-500 mt-1">Not time to recorded collapse</p>
         </div>
       </div>
 
@@ -184,7 +189,7 @@
         <h2 class="text-lg font-bold text-slate-900 mb-1 flex items-center gap-2">
           <i data-lucide="git-compare" class="w-5 h-5 text-cyan-600"></i> Baseline Comparison Overview
         </h2>
-        <p class="text-xs text-slate-500 mb-4">Direct evaluation on identical 152 test patients (zero data leakage, past-only chronological replay).</p>
+        <p class="text-xs text-slate-500 mb-4">Direct evaluation on 152 test patients (22 positive / 130 negative; zero data leakage, past-only chronological replay). PPV is patient-level; false alerts are alert events on negative patients.</p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <!-- SilentWindow -->
           <div class="p-4 rounded-xl border-2 border-cyan-500 bg-cyan-50/40 relative">
@@ -193,9 +198,10 @@
             <p class="text-xs text-slate-500 mb-3">Trust Layer + Personal Baseline + Accumulator</p>
             <div class="space-y-1.5 text-xs text-slate-700">
               <div class="flex justify-between"><span>Sensitivity (Recall):</span> <strong>13.6%</strong></div>
-              <div class="flex justify-between"><span>False Alerts (Cohort):</span> <strong class="text-slate-900">51</strong></div>
+              <div class="flex justify-between"><span>PPV / Precision:</span> <strong>15.0%</strong></div>
+              <div class="flex justify-between"><span>False-alert Events:</span> <strong class="text-slate-900">51</strong></div>
               <div class="flex justify-between"><span>Alerts / Patient-Day:</span> <strong>0.203</strong></div>
-              <div class="flex justify-between"><span>Median Lead Time:</span> <strong>37.0 hours</strong></div>
+              <div class="flex justify-between"><span>Median Proxy Lead:</span> <strong>37.0 hours</strong></div>
             </div>
           </div>
           <!-- Plain ML -->
@@ -205,9 +211,10 @@
             <p class="text-xs text-slate-500 mb-3">XGBoost instant risk threshold (≥ 0.50)</p>
             <div class="space-y-1.5 text-xs text-slate-700">
               <div class="flex justify-between"><span>Sensitivity (Recall):</span> <strong>4.5%</strong></div>
-              <div class="flex justify-between"><span>False Alerts (Cohort):</span> <strong>24</strong></div>
+              <div class="flex justify-between"><span>PPV / Precision:</span> <strong>33.3%</strong></div>
+              <div class="flex justify-between"><span>False-alert Events:</span> <strong>24</strong></div>
               <div class="flex justify-between"><span>Alerts / Patient-Day:</span> <strong>0.203</strong></div>
-              <div class="flex justify-between"><span>Median Lead Time:</span> <strong>41.0 hours</strong></div>
+              <div class="flex justify-between"><span>Median Proxy Lead:</span> <strong>41.0 hours</strong></div>
             </div>
           </div>
           <!-- Threshold -->
@@ -217,9 +224,10 @@
             <p class="text-xs text-slate-500 mb-3">Fixed abnormal vital sign boundaries</p>
             <div class="space-y-1.5 text-xs text-slate-700">
               <div class="flex justify-between"><span>Sensitivity (Recall):</span> <strong>40.9%</strong></div>
-              <div class="flex justify-between"><span>False Alerts (Cohort):</span> <strong class="text-red-600">120 (Alarm Spam!)</strong></div>
+              <div class="flex justify-between"><span>PPV / Precision:</span> <strong>22.0%</strong></div>
+              <div class="flex justify-between"><span>False-alert Events:</span> <strong class="text-red-600">120</strong></div>
               <div class="flex justify-between"><span>Alerts / Patient-Day:</span> <strong class="text-red-600">0.504</strong></div>
-              <div class="flex justify-between"><span>Median Lead Time:</span> <strong>42.0 hours</strong></div>
+              <div class="flex justify-between"><span>Median Proxy Lead:</span> <strong>41.0 hours</strong></div>
             </div>
           </div>
         </div>
@@ -505,12 +513,12 @@
             <h4 class="font-bold text-xs text-cyan-900 mb-2">Full SilentWindow</h4>
             <div class="grid grid-cols-2 gap-2 text-center text-xs">
               <div class="p-2 bg-emerald-100 rounded text-emerald-900"><strong>TP: 3</strong><br><span class="text-[10px]">Detected Deterioration</span></div>
-              <div class="p-2 bg-slate-100 rounded text-slate-700"><strong>FP: 29</strong><br><span class="text-[10px]">False Positive Pts</span></div>
+              <div class="p-2 bg-slate-100 rounded text-slate-700"><strong>FP: 17</strong><br><span class="text-[10px]">False Positive Pts</span></div>
               <div class="p-2 bg-slate-100 rounded text-slate-700"><strong>FN: 19</strong><br><span class="text-[10px]">Undetected Cases</span></div>
-              <div class="p-2 bg-emerald-100 rounded text-emerald-900"><strong>TN: 101</strong><br><span class="text-[10px]">True Non-Deterioration</span></div>
+              <div class="p-2 bg-emerald-100 rounded text-emerald-900"><strong>TN: 113</strong><br><span class="text-[10px]">True Non-Deterioration</span></div>
             </div>
             <div class="mt-2 text-[11px] text-slate-600 flex justify-between">
-              <span>Total Alerts Fired: <strong>54</strong></span>
+              <span>Total Alerts Fired: <strong>60</strong></span>
               <span>Alerts/pt-day: <strong>0.203</strong></span>
             </div>
           </div>
@@ -520,12 +528,12 @@
             <h4 class="font-bold text-xs text-slate-800 mb-2">Plain ML Baseline</h4>
             <div class="grid grid-cols-2 gap-2 text-center text-xs">
               <div class="p-2 bg-emerald-50 rounded text-emerald-900"><strong>TP: 1</strong><br><span class="text-[10px]">Detected Deterioration</span></div>
-              <div class="p-2 bg-slate-100 rounded text-slate-700"><strong>FP: 15</strong><br><span class="text-[10px]">False Positive Pts</span></div>
+              <div class="p-2 bg-slate-100 rounded text-slate-700"><strong>FP: 2</strong><br><span class="text-[10px]">False Positive Pts</span></div>
               <div class="p-2 bg-slate-100 rounded text-slate-700"><strong>FN: 21</strong><br><span class="text-[10px]">Undetected Cases</span></div>
-              <div class="p-2 bg-emerald-50 rounded text-emerald-900"><strong>TN: 115</strong><br><span class="text-[10px]">True Non-Deterioration</span></div>
+              <div class="p-2 bg-emerald-50 rounded text-emerald-900"><strong>TN: 128</strong><br><span class="text-[10px]">True Non-Deterioration</span></div>
             </div>
             <div class="mt-2 text-[11px] text-slate-600 flex justify-between">
-              <span>Total Alerts Fired: <strong>25</strong></span>
+              <span>Total Alerts Fired: <strong>60</strong></span>
               <span>Alerts/pt-day: <strong>0.203</strong></span>
             </div>
           </div>
@@ -535,12 +543,12 @@
             <h4 class="font-bold text-xs text-slate-800 mb-2">Simplified Threshold</h4>
             <div class="grid grid-cols-2 gap-2 text-center text-xs">
               <div class="p-2 bg-emerald-50 rounded text-emerald-900"><strong>TP: 9</strong><br><span class="text-[10px]">Detected Deterioration</span></div>
-              <div class="p-2 bg-red-100 rounded text-red-900"><strong>FP: 61</strong><br><span class="text-[10px]">Severe False Positives</span></div>
+              <div class="p-2 bg-red-100 rounded text-red-900"><strong>FP: 32</strong><br><span class="text-[10px]">False Positive Pts</span></div>
               <div class="p-2 bg-slate-100 rounded text-slate-700"><strong>FN: 13</strong><br><span class="text-[10px]">Undetected Cases</span></div>
-              <div class="p-2 bg-emerald-50 rounded text-emerald-900"><strong>TN: 69</strong><br><span class="text-[10px]">True Non-Deterioration</span></div>
+              <div class="p-2 bg-emerald-50 rounded text-emerald-900"><strong>TN: 98</strong><br><span class="text-[10px]">True Non-Deterioration</span></div>
             </div>
             <div class="mt-2 text-[11px] text-slate-600 flex justify-between">
-              <span>Total Alerts Fired: <strong class="text-red-600">144</strong></span>
+              <span>Total Alerts Fired: <strong class="text-red-600">149</strong></span>
               <span>Alerts/pt-day: <strong class="text-red-600">0.504</strong></span>
             </div>
           </div>
@@ -549,13 +557,13 @@
         <!-- PR Curve & ROC Curve -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
-            <h3 class="text-xs font-bold text-slate-700 uppercase mb-2">ROC Curve (Cohort Discrimination: AUC 0.6990)</h3>
+            <h3 class="text-xs font-bold text-slate-700 uppercase mb-2">ROC Curve (Held-out Replay AUC 0.6407)</h3>
             <div class="h-64 relative">
               <canvas id="chart-roc"></canvas>
             </div>
           </div>
           <div class="p-4 rounded-xl border border-slate-200 bg-slate-50">
-            <h3 class="text-xs font-bold text-slate-700 uppercase mb-2">Precision-Recall Curve (PR-AUC 0.2803)</h3>
+            <h3 class="text-xs font-bold text-slate-700 uppercase mb-2">Precision-Recall Curve (Held-out PR-AUC 0.2443)</h3>
             <div class="h-64 relative">
               <canvas id="chart-pr"></canvas>
             </div>
@@ -581,7 +589,7 @@
     <section id="view-ablation" class="space-y-6 hidden">
       <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
         <h1 class="text-2xl font-bold text-slate-900 mb-1">Architectural Ablation Study</h1>
-        <p class="text-xs text-slate-500 mb-6">Empirical evaluation of each architectural layer by systematic removal on identical test patients.</p>
+        <p class="text-xs text-slate-500 mb-6">Small-cohort ablation on identical test patients; results are descriptive and do not show that every layer helps.</p>
 
         <!-- Ablation Table -->
         <div class="border border-slate-200 rounded-xl overflow-hidden mb-6">
@@ -590,6 +598,7 @@
               <tr>
                 <th class="px-4 py-3">System Architecture</th>
                 <th class="px-4 py-3">Sensitivity</th>
+                <th class="px-4 py-3">PPV</th>
                 <th class="px-4 py-3">False Alarms</th>
                 <th class="px-4 py-3">Alerts / Patient-Day</th>
                 <th class="px-4 py-3">Median Lead Time</th>
@@ -605,16 +614,16 @@
         <!-- Component Insights -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <h4 class="font-bold text-xs text-slate-900 mb-1">Impact of Trust Layer</h4>
-            <p class="text-xs text-slate-600">Prevents sensor artifacts (extreme jumps and loose-lead disconnects) from prematurely inflating deterioration risk or corrupting personal baselines.</p>
+            <h4 class="font-bold text-xs text-slate-900 mb-1">Trust Layer: null result here</h4>
+            <p class="text-xs text-slate-600">Removing it produced identical cohort metrics to the full system. This experiment does not establish a benefit on this test set.</p>
           </div>
           <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <h4 class="font-bold text-xs text-slate-900 mb-1">Impact of Personal Baseline</h4>
-            <p class="text-xs text-slate-600">Normalizes each patient to their admission physiological state, allowing detection of relative deterioration in patients who deviate from their own normal.</p>
+            <h4 class="font-bold text-xs text-slate-900 mb-1">Personal Baseline: mixed result</h4>
+            <p class="text-xs text-slate-600">Removing it kept sensitivity unchanged but reduced false-alert events from 51 to 11 and raised PPV from 15% to 75% in this cohort.</p>
           </div>
           <div class="p-4 rounded-xl bg-slate-50 border border-slate-200">
-            <h4 class="font-bold text-xs text-slate-900 mb-1">Impact of Evidence Accumulator</h4>
-            <p class="text-xs text-slate-600">The primary filter against alert fatigue. Demands sequential persistence across multiple time steps before escalating to a high-confidence alert, avoiding single-spike false alarms.</p>
+            <h4 class="font-bold text-xs text-slate-900 mb-1">Evidence Accumulator: operating-point effect</h4>
+            <p class="text-xs text-slate-600">Removing it changed sensitivity from 13.6% to 4.5%. This supports an effect in this run, not a clinical safety claim.</p>
           </div>
         </div>
       </div>
@@ -628,7 +637,7 @@
         <h1 class="text-2xl font-bold text-slate-900 mb-1 flex items-center gap-2">
           <i data-lucide="sliders" class="w-6 h-6 text-cyan-600"></i> Noise Stress Lab & Resilience Testing
         </h1>
-        <p class="text-xs text-slate-500 mb-6">Simulates real-world ICU sensor noise (missingness, motion spikes, timing jitter) on in-memory test streams without modifying disk data.</p>
+        <p class="text-xs text-slate-500 mb-6">Synthetic missingness, motion spikes, and timing jitter on a small 30-patient run; descriptive stress testing, not proof of real-world immunity.</p>
 
         <!-- Noise Controls Deck -->
         <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 mb-6 space-y-4">
@@ -676,6 +685,52 @@
           <div class="h-64 relative">
             <canvas id="chart-noise-comparison"></canvas>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- PAGE 8: AI COPILOT                         -->
+    <!-- ========================================== -->
+    <section id="view-aicopilot" class="space-y-6 hidden">
+      <div class="bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 rounded-2xl p-6 sm:p-8 text-white shadow-lg border border-indigo-900">
+        <div class="max-w-3xl">
+          <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-400/15 text-indigo-200 border border-indigo-400/25 mb-3">
+            <i data-lucide="bot" class="w-4 h-4"></i> Gemini-powered research copilot
+          </div>
+          <h1 class="text-3xl font-extrabold tracking-tight mb-2">Ask the evidence, not the hype.</h1>
+          <p class="text-slate-300 text-sm leading-relaxed">Summarize a patient timeline, explain a metric, or interrogate a limitation. The copilot receives only the context you provide and is instructed not to diagnose or recommend treatment.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div class="lg:col-span-3 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-bold text-slate-900 flex items-center gap-2"><i data-lucide="message-square" class="w-5 h-5 text-indigo-600"></i> Research prompt</h2>
+            <span id="ai-status" class="text-[11px] font-semibold px-2 py-1 rounded-full bg-slate-100 text-slate-500">Checking connection…</span>
+          </div>
+          <div class="flex flex-wrap gap-2 mb-4">
+            <button onclick="useAIPrompt('What does the held-out sensitivity and PPV imply about this alerting system?')" class="ai-prompt-chip">Interpret the metrics</button>
+            <button onclick="useAIPrompt('Summarize the main limitations of this retrospective evaluation.')" class="ai-prompt-chip">Summarize limitations</button>
+            <button onclick="useAIPrompt('Compare the threshold baseline with SilentWindow without overstating the result.')" class="ai-prompt-chip">Compare systems</button>
+          </div>
+          <label class="block text-xs font-semibold text-slate-600 mb-2" for="ai-question">Your question</label>
+          <textarea id="ai-question" rows="7" maxlength="4000" placeholder="Ask about the evaluation, a patient timeline, or the meaning of a model metric…" class="w-full rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-y"></textarea>
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4">
+            <label class="text-xs text-slate-500 flex items-center gap-2">Patient context (optional)
+              <select id="ai-patient-selector" class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-700"><option value="">None</option></select>
+            </label>
+            <button id="ai-ask-btn" onclick="askAICopilot()" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-300 text-white font-semibold text-sm rounded-lg shadow transition flex items-center justify-center gap-2"><i data-lucide="send" class="w-4 h-4"></i> Ask Copilot</button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-4">Research use only. Do not enter names, identifiers, or new clinical information. Gemini and Supabase keys remain server-side.</p>
+        </div>
+
+        <div class="lg:col-span-2 bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200 min-h-[360px]">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-bold text-slate-900 flex items-center gap-2"><i data-lucide="sparkles" class="w-5 h-5 text-indigo-600"></i> Copilot response</h2>
+            <span id="ai-model-label" class="text-[10px] text-slate-400"></span>
+          </div>
+          <div id="ai-response" class="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap"><div class="h-full min-h-[260px] flex items-center justify-center text-center text-slate-400"><div><i data-lucide="message-circle-more" class="w-8 h-8 mx-auto mb-3 text-indigo-300"></i><p>Your evidence-aware response will appear here.</p></div></div></div>
         </div>
       </div>
     </section>

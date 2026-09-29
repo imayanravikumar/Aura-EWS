@@ -13,12 +13,15 @@ import numpy as np
 import pandas as pd
 from typing import Dict, List, Tuple
 from sklearn.metrics import roc_auc_score, average_precision_score, brier_score_loss, log_loss
+from sklearn.calibration import calibration_curve
 
 from ml.preprocessing import load_config, get_patient_splits, load_patient_raw
 from ml.trust_layer import TrustAwareSignalProcessor
 from ml.features import FeatureExtractor
 from ml.labeling import OutcomeLabeler
 from ml.calibration import ModelCalibrator
+
+FEATURE_SCHEMA_VERSION = "temporal-static-v2"
 
 def build_split_dataset(
     patient_ids: List[int],
@@ -72,7 +75,12 @@ def train_and_calibrate(config_path: str = "configs/config.yaml") -> Dict:
     train_cache = os.path.join(processed_dir, "train_features.parquet")
     val_cache = os.path.join(processed_dir, "val_features.parquet")
 
-    if os.path.exists(train_cache) and os.path.exists(val_cache):
+    schema_file = os.path.join(processed_dir, "feature_schema.json")
+    schema_matches = False
+    if os.path.exists(schema_file):
+        with open(schema_file, "r") as f:
+            schema_matches = json.load(f).get("version") == FEATURE_SCHEMA_VERSION
+    if os.path.exists(train_cache) and os.path.exists(val_cache) and schema_matches:
         print("Loading cached train and validation feature sets...")
         df_train = pd.read_parquet(train_cache)
         df_val = pd.read_parquet(val_cache)
@@ -84,7 +92,7 @@ def train_and_calibrate(config_path: str = "configs/config.yaml") -> Dict:
         df_val = build_split_dataset(val_ids, config, records_dir, trust_proc, extractor, labeler, step_hours=2.0)
         df_val.to_parquet(val_cache, index=False)
 
-    meta_cols = {"patient_id", "eval_time", "target", "sofa", "saps", "length_of_stay", "survival"}
+    meta_cols = {"patient_id", "eval_time", "target", "sofa", "saps", "length_of_stay", "survival", "died_or_short_stay_48h"}
     feature_cols = [c for c in df_train.columns if c not in meta_cols]
 
     X_train = df_train[feature_cols].copy()
@@ -148,6 +156,34 @@ def train_and_calibrate(config_path: str = "configs/config.yaml") -> Dict:
     joblib.dump(calibrator, calibrator_path)
     with open(features_path, "w") as f:
         json.dump(feature_cols, f, indent=2)
+    with open(schema_file, "w") as f:
+        json.dump({"version": FEATURE_SCHEMA_VERSION, "n_features": len(feature_cols)}, f, indent=2)
+
+    # Save calibration points for a reviewable plot, independent of the dashboard.
+    frac_raw, mean_raw = calibration_curve(y_val, raw_val_probs, n_bins=10, strategy="quantile")
+    frac_cal, mean_cal = calibration_curve(y_val, calib_val_probs, n_bins=10, strategy="quantile")
+    os.makedirs("results", exist_ok=True)
+    with open(os.path.join("results", "calibration_curve.json"), "w") as f:
+        json.dump({
+            "n_validation_rows": int(len(y_val)),
+            "raw": {"fraction_positive": frac_raw.tolist(), "mean_predicted": mean_raw.tolist()},
+            "calibrated": {"fraction_positive": frac_cal.tolist(), "mean_predicted": mean_cal.tolist()}
+        }, f, indent=2)
+    try:
+        import matplotlib.pyplot as plt
+        plt.figure(figsize=(5, 5))
+        plt.plot([0, 1], [0, 1], "k--", label="Perfect calibration")
+        plt.plot(mean_raw, frac_raw, "o-", label="Raw")
+        plt.plot(mean_cal, frac_cal, "o-", label="Platt calibrated")
+        plt.xlabel("Mean predicted risk")
+        plt.ylabel("Observed event frequency")
+        plt.title("Validation calibration")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(os.path.join("results", "calibration_plot.png"), dpi=160)
+        plt.close()
+    except ImportError:
+        pass
 
     results_summary = {
         "model_type": "xgboost",

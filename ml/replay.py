@@ -190,6 +190,7 @@ class ChronologicalReplayEngine:
                 },
                 # Outcome labels
                 "actual_outcome": outcome_info["in_hospital_death"],
+                "secondary_outcome": outcome_info["died_or_short_stay_48h"],
                 "sofa": outcome_info["sofa"],
                 "saps": outcome_info["saps"],
                 "length_of_stay": outcome_info["length_of_stay"],

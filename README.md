@@ -42,9 +42,9 @@ flowchart TD
     L2 --> ML["XGBoost Risk Model + Platt Calibrator<br/>• Tabular past-only feature vector<br/>• Calibrated empirical event probability p(t)"]
     ML --> L3["LAYER 3: Sequential Evidence Accumulator<br/>• CUSUM-style sequential accumulator E(t)<br/>• Credibility-weighted evidence increment<br/>• Exponential decay on normalizing risk<br/>• Refractory period & alert budget ceiling"]
     L3 --> STATES{"Alert State Engine"}
-    STATES -->|E(t) < 0.40| STABLE["🟢 STABLE<br/>Silent Monitoring"]
-    STATES -->|0.40 ≤ E(t) < 0.75| WATCH["🟡 WATCH<br/>Dashboard advisory (No alarm)"]
-    STATES -->|E(t) ≥ 0.75| ALERT["🔴 ALERT<br/>High-confidence alert with SHAP rationale"]
+    STATES -->|"E(t) < 0.40"| STABLE["STABLE<br/>Silent Monitoring"]
+    STATES -->|"0.40 <= E(t) < 0.75"| WATCH["WATCH<br/>Dashboard advisory (No alarm)"]
+    STATES -->|"E(t) >= 0.75"| ALERT["ALERT<br/>High-confidence alert with SHAP rationale"]
     ALERT --> EXP["Explainability & Timeline Audit<br/>• Top SHAP factor waterfall<br/>• Layer 1 downweighted reading provenance"]
 ```
 

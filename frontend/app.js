@@ -34,6 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadAblationData();
   await loadPerformanceData();
   await loadNoiseData();
+  await loadAIHealth();
 });
 
 // --- Tab Switching ---
@@ -109,11 +110,84 @@ async function loadWardMonitor() {
         selectedPatientId = wardPatients[0].patient_id;
         selector.value = selectedPatientId;
       }
+      const aiSelector = document.getElementById("ai-patient-selector");
+      if (aiSelector) {
+        aiSelector.innerHTML = '<option value="">None</option>' + wardPatients.slice(0, 50).map(p => `<option value="${p.patient_id}">Patient ${p.patient_id}</option>`).join("");
+        aiSelector.value = selectedPatientId || "";
+      }
     }
 
     renderWardTable(wardPatients);
   } catch (err) {
     console.error("Error loading ward monitor:", err);
+  }
+}
+
+async function loadAIHealth() {
+  const status = document.getElementById("ai-status");
+  if (!status) return;
+  try {
+    const res = await fetch("/api/ai/health");
+    const data = await res.json();
+    status.textContent = data.gemini_configured ? "Gemini ready" : "Gemini key not configured";
+    status.className = data.gemini_configured
+      ? "text-[11px] font-semibold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700"
+      : "text-[11px] font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700";
+    const model = document.getElementById("ai-model-label");
+    if (model) model.textContent = data.model || "Gemini";
+  } catch (err) {
+    status.textContent = "AI endpoint unavailable";
+    status.className = "text-[11px] font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700";
+  }
+}
+
+function useAIPrompt(prompt) {
+  const input = document.getElementById("ai-question");
+  if (input) {
+    input.value = prompt;
+    input.focus();
+  }
+}
+
+async function askAICopilot() {
+  const input = document.getElementById("ai-question");
+  const button = document.getElementById("ai-ask-btn");
+  const responseBox = document.getElementById("ai-response");
+  const patientSelector = document.getElementById("ai-patient-selector");
+  const question = (input?.value || "").trim();
+  if (!question) {
+    responseBox.textContent = "Write a question first.";
+    return;
+  }
+  button.disabled = true;
+  button.innerHTML = '<i data-lucide="loader-circle" class="w-4 h-4 animate-spin"></i> Thinking…';
+  if (window.lucide) lucide.createIcons();
+  responseBox.textContent = "Generating a cautious, evidence-aware response…";
+  let context = { page: "SilentWindow AI Copilot", disclaimer: "Retrospective research prototype; not for clinical decision-making." };
+  const patientId = patientSelector?.value;
+  try {
+    const performanceRes = await fetch("/api/performance");
+    if (performanceRes.ok) context.evaluation = await performanceRes.json();
+    if (patientId) {
+      const timelineRes = await fetch(`/api/patient/${encodeURIComponent(patientId)}/timeline`);
+      if (timelineRes.ok) context.patient_timeline = await timelineRes.json();
+    }
+    const res = await fetch("/api/ai/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, patient_id: patientId ? Number(patientId) : null, context })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "AI request failed");
+    responseBox.textContent = data.answer || "The AI service returned an empty response.";
+    const model = document.getElementById("ai-model-label");
+    if (model) model.textContent = `${data.model || "Gemini"}${data.persisted ? " · saved" : ""}`;
+  } catch (err) {
+    responseBox.textContent = `Unable to generate a response: ${err.message}`;
+  } finally {
+    button.disabled = false;
+    button.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Ask Copilot';
+    if (window.lucide) lucide.createIcons();
   }
 }
 
@@ -539,7 +613,7 @@ async function loadPerformanceData() {
         data: {
           labels: data.curves.roc.map(p => p.fpr),
           datasets: [
-            { label: "SilentWindow ROC (AUC: 0.6990)", data: data.curves.roc.map(p => p.tpr), borderColor: "#0891B2", borderWidth: 2, pointRadius: 0, tension: 0.1 },
+            { label: "SilentWindow ROC (held-out AUC: 0.6407)", data: data.curves.roc.map(p => p.tpr), borderColor: "#0891B2", borderWidth: 2, pointRadius: 0, tension: 0.1 },
             { label: "Chance Diagonal", data: [0, 1], borderColor: "#94A3B8", borderDash: [4, 4], pointRadius: 0, borderWidth: 1 }
           ]
         },
@@ -563,7 +637,7 @@ async function loadPerformanceData() {
         data: {
           labels: data.curves.pr.map(p => p.recall),
           datasets: [
-            { label: "Precision-Recall Curve (PR-AUC: 0.2803)", data: data.curves.pr.map(p => p.precision), borderColor: "#10B981", borderWidth: 2, pointRadius: 0, tension: 0.1 }
+            { label: "Precision-Recall Curve (held-out PR-AUC: 0.2443)", data: data.curves.pr.map(p => p.precision), borderColor: "#10B981", borderWidth: 2, pointRadius: 0, tension: 0.1 }
           ]
         },
         options: {
@@ -625,6 +699,7 @@ async function loadAblationData() {
           <div class="text-[11px] text-slate-500 font-normal">${r.description}</div>
         </td>
         <td class="px-4 py-3 font-mono">${(r.sensitivity * 100).toFixed(1)}%</td>
+        <td class="px-4 py-3 font-mono">${(r.precision * 100).toFixed(1)}%</td>
         <td class="px-4 py-3 font-mono ${r.false_alarms > 50 ? 'text-slate-800' : 'text-slate-600'}">${r.false_alarms}</td>
         <td class="px-4 py-3 font-mono">${r.alerts_per_patient_day.toFixed(3)}</td>
         <td class="px-4 py-3 font-mono">${r.median_lead_time ? r.median_lead_time.toFixed(1) + 'h' : '--'}</td>
@@ -699,9 +774,9 @@ function renderNoiseResults(data) {
     const card = document.createElement("div");
     card.className = `p-4 rounded-xl border ${isSW ? 'border-cyan-500 bg-cyan-50/20' : 'border-slate-200 bg-white'}`;
     
-    let changeBadge = `<span class="text-emerald-700 font-bold bg-emerald-100 px-2 py-0.5 rounded text-xs">+0.0% false alarms</span>`;
+    let changeBadge = `<span class="text-slate-700 font-bold bg-slate-100 px-2 py-0.5 rounded text-xs">0.0% change in this run</span>`;
     if (c.false_alert_increase_pct > 0) {
-      changeBadge = `<span class="text-red-700 font-bold bg-red-100 px-2 py-0.5 rounded text-xs">+${c.false_alert_increase_pct}% false alarms!</span>`;
+      changeBadge = `<span class="text-red-700 font-bold bg-red-100 px-2 py-0.5 rounded text-xs">+${c.false_alert_increase_pct}% false-alert events</span>`;
     }
 
     card.innerHTML = `
