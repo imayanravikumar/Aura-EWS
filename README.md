@@ -84,7 +84,7 @@ Patient data leakage renders clinical AI models useless in the real world. Silen
 ## 5. Layer 1 — Trust-Aware Signal Processing
 
 Rather than silently imputing or deleting noisy readings, Layer 1 generates an explicit assessment tuple for every observation:
-$$\text{Assessment} = \langle \text{reading\_value}, \text{reading\_validity}, \text{credibility\_score}, \text{reason\_for\_downweighting} \rangle$$
+$$\text{Assessment} = \langle \text{reading value}, \text{reading validity}, \text{credibility score}, \text{reason for downweighting} \rangle$$
 
 - **Physiological Plausibility:** Checks conservative dataset percentiles (e.g. HR $\notin [30, 220]$, SysABP $\notin [40, 240]$).
 - **Sudden Jump Detection:** Compares the rate of change against recent history ($\Delta v / \Delta t$). E.g., HR jumping $+50\text{ bpm}$ in 10 minutes receives a severe credibility penalty ($c_t < 0.40$).
